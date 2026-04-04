@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>XOLƎRIƆ — Digital Architect</title>
+    <style>
+        /* --- PREMIUM MINIMALIST THEME O'ZGARUVCHILARI --- */
+        :root {
+            --bg-color: #030305;
+            --surface: rgba(255, 255, 255, 0.03);
+            --surface-hover: rgba(255, 255, 255, 0.06);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #a0a0a5;
+            --accent: #a8b1ff; /* Nafis ko'k-binafsha */
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+            /* Rasm ustidan tushib turadigan qora rangli to'r / gradient */
+            background-image: linear-gradient(to bottom, rgba(3,3,5,0.7) 0%, rgba(3,3,5,0.95) 100%);
+        }
+
+        /* Yengil Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* --- 1. SIZNING ORQA FON RASMINGIZ --- */
+        #bg-image {
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            background-image: url('https://i.ibb.co/JjJ2mjS4/1775193815209-edit-90965910067883.png');
+            background-size: cover; 
+            background-position: center;
+            z-index: -2; 
+            opacity: 0.35; /* Matnlar o'qilishi uchun xira qilingan */
+            filter: grayscale(40%) contrast(1.1); /* Minimalist vibega moslash */
+            pointer-events: none;
+        }
+
+        /* --- 2. 3D YULDUZLAR FONI --- */
+        #three-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; opacity: 0.6; pointer-events: none;
+        }
+
+        /* --- ASOSIY KONTENT --- */
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 10; }
+
+        /* Navigatsiya */
+        nav {
+            position: fixed; top: 0; width: 100%; z-index: 100;
+            padding: 20px 0; background: rgba(3, 3, 5, 0.6);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+        .logo { font-size: 1.2rem; font-weight: 700; letter-spacing: 2px; cursor: pointer; user-select: none;}
+        .nav-links { display: flex; gap: 32px; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.3s ease; }
+        .nav-links a:hover { color: var(--text-main); }
+
+        /* Hero Qismi */
+        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding-top: 80px; }
+        .hero h1 { 
+            font-size: clamp(3rem, 8vw, 5.5rem); font-weight: 800; letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px;
+            background: linear-gradient(135deg, #ffffff 0%, #888888 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero p { font-size: 1.2rem; color: var(--text-muted); max-width: 600px; font-weight: 400; text-shadow: 0 2px 10px rgba(0,0,0,0.5);}
+        
+        .fade-in-up { opacity: 0; transform: translateY(30px); transition: all 1s cubic-bezier(0.16, 1, 0.3, 1); }
+        .fade-in-up.visible { opacity: 1; transform: translateY(0); }
+
+        /* Bo'limlar */
+        section { padding: 120px 0; border-bottom: 1px solid var(--border); }
+        section:last-of-type { border-bottom: none; }
+        .section-header { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 48px; font-weight: 600; }
+
+        /* Kartochkalar (Minimalist Glassmorphism) */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+            padding: 40px; transition: all 0.4s ease; position: relative; overflow: hidden;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        }
+        .card:hover { background: var(--surface-hover); transform: translateY(-4px); border-color: rgba(255,255,255,0.15);}
+        .card h3 { font-size: 1.5rem; margin-bottom: 16px; font-weight: 600; }
+        .card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; }
+
+        .social-btn {
+            display: inline-block; margin-top: 20px; margin-right: 15px;
+            padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text-main); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+            transition: 0.3s; background: rgba(0,0,0,0.2);
+        }
+        .social-btn:hover { background: var(--text-main); color: #000; }
+
+        /* Footer & Elegant Timer */
+        footer { padding: 60px 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem; position: relative; z-index: 10;}
+        .timer-container {
+            display: inline-flex; align-items: center; gap: 16px; padding: 12px 24px;
+            background: rgba(10,10,15,0.5); border-radius: 100px; border: 1px solid var(--border);
+            font-family: 'Courier New', monospace; letter-spacing: 1px; backdrop-filter: blur(10px);
+        }
+        .timer-label { color: var(--accent); }
+
+        /* Minimalist Chat */
+        .chat-toggle {
+            position: fixed; bottom: 32px; right: 32px; width: 56px; height: 56px;
+            background: var(--text-main); color: var(--bg-color); border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1); transition: transform 0.3s ease; z-index: 100;
+        }
+        .chat-toggle:hover { transform: scale(1.05); }
+        .chat-toggle svg { width: 24px; height: 24px; fill: currentColor; }
+
+        .chat-panel {
+            position: fixed; bottom: 100px; right: 32px; width: 340px; height: 480px;
+            background: rgba(10, 10, 12, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 20px; display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transform: translateY(20px) scale(0.95); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); z-index: 100;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8); overflow: hidden;
+        }
+        .chat-panel.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+        .chat-header { padding: 20px; font-weight: 600; font-size: 0.95rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+        .close-btn { cursor: pointer; color: var(--text-muted); transition: 0.3s; }
+        .close-btn:hover { color: var(--text-main); }
+        .chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; font-size: 0.9rem; }
+        .msg { padding: 12px 16px; border-radius: 12px; max-width: 85%; line-height: 1.5; word-wrap: break-word;}
+        .msg.bot { background: var(--surface); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.05);}
+        .msg.user { background: var(--text-main); color: var(--bg-color); align-self: flex-end; border-bottom-right-radius: 4px; font-weight: 500; }
+        
+        .chat-input-area { padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 12px; background: rgba(0,0,0,0.3);}
+        .chat-input-area input { flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 0.95rem; outline: none; }
+        .chat-input-area input::placeholder { color: var(--text-muted); }
+        .send-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: 0.3s; display: flex; align-items: center; }
+        .send-btn:hover { color: var(--text-main); }
+        .send-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 3.5rem; }
+            .nav-links { display: none; }
+            .chat-panel { width: calc(100% - 48px); right: 24px; bottom: 100px; height: 60vh;}
+            .timer-container { flex-direction: column; gap: 6px; text-align: center; }
+        }
+    </style>
+    
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+</head>
+<body>
+
+    <div id="bg-image"></div>
+
+    <div id="three-canvas"></div>
+
+    <nav>
+        <div class="nav-content">
+            <div class="logo" onclick="window.scrollTo(0,0)">XOLƎRIƆ</div>
+            <div class="nav-links">
+                <a href="#about">Tizim</a>
+                <a href="#projects">Loyihalar</a>
+                <a href="#audio">Audio</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <section class="hero fade-in-up">
+            <h1>Raqamli arxitektura va<br>avtomatlashtirish.</h1>
+            <p>Mukammal web-ilovalardan tortib, kompyuter boshqaruvini to'liq o'z zimmasiga oluvchi intellektual assistentlargacha bo'lgan arxitekturalarni loyihalash.</p>
+        </section>
+
+        <section id="about" class="fade-in-up">
+            <div class="section-header">Asosiy Yo'nalishlar</div>
+            <div class="grid">
+                <div class="card">
+                    <h3>Web Arxitektura</h3>
+                    <p>Zamonaviy, tez va optimallashtirilgan web platformalar hamda portfolio saytlar yaratish. Har bir qatorda estetika va unumdorlik muvozanati.</p>
+                </div>
+                <div class="card">
+                    <h3>Kiberxavfsizlik & Tizimlar</h3>
+                    <p>Xavfsiz tarmoqlar va infratuzilmalar. Kali Linux muhitida jarayonlarni avtomatlashtirish va shaxsiy AI assistentlar mantig'ini yozish.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects" class="fade-in-up">
+            <div class="section-header">Raqamli Izi</div>
+            <div class="grid">
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h3>Tarmoqlar & Kodlar</h3>
+                    <p>XOLƎRIƆ brendi ostidagi loyihalar va manba kodlari. Ochiq manbali loyihalar ustida ishlash va texnologik tajribalar almashish.</p>
+                    <div style="margin-top: 10px;">
+                        <a href="https://github.com/Xolericuz" target="_blank" class="social-btn">GitHub</a>
+                        <a href="https://t.me/neoorg" target="_blank" class="social-btn">Telegram</a>
+                        <a href="https://www.instagram.com/xoleric_?igsh=d2hhcW01eWdrODd5" target="_blank" class="social-btn">Instagram</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="audio" class="fade-in-up">
+            <div class="section-header">Audio Muhandislik</div>
+            <div class="grid">
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h3>Phonk & Instrumental</h3>
+                    <p>Dasturlash faqatgina kod yozish emas, u o'ziga xos ritm talab qiladi. Raqamli olam bilan uyg'unlashadigan, chuqur bas va dinamik zarbalarga ega Phonk hamda instrumental beatlar yaratish jarayoni.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <div class="timer-container fade-in-up">
+            <span class="timer-label">DOB: 03.09.2003</span>
+            <span>|</span>
+            <span id="live-age">Age: 0.00000000</span>
+        </div>
+    </footer>
+
+    <div class="chat-toggle" onclick="toggleChat()">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+    </div>
+
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            XOLƎRIƆ Assistant
+            <span class="close-btn" onclick="toggleChat()">✕</span>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="msg bot">Tizim faol. Qanday yordam bera olaman?</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Xabar yozing..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button class="send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Scroll Fade-In Animatsiyasi
+        const observerOptions = { threshold: 0.1, rootMargin: "0px 0px -50px 0px" };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+        document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+        // 2. Yoshni aniq hisoblovchi Taymer
+        const dob = new Date('2003-09-03T00:00:00+05:00').getTime();
+        const ageEl = document.getElementById('live-age');
+        
+        function updateAge() {
+            const now = Date.now();
+            const ageInYears = (now - dob) / (1000 * 60 * 60 * 24 * 365.25);
+            ageEl.textContent = `AGE: ${ageInYears.toFixed(9)}`;
+            requestAnimationFrame(updateAge);
+        }
+        requestAnimationFrame(updateAge);
+
+        // 3. Chat Mantig'i
+        const chatPanel = document.getElementById('chatPanel');
+        const chatBody = document.getElementById('chatBody');
+        const chatInput = document.getElementById('chatInput');
+        const GEMINI_API_KEY = "AIzaSyDNZQgoXro59hHLe4uGKuEqrtl-Yat3eQY"; 
+
+        function toggleChat() { 
+            chatPanel.classList.toggle('open'); 
+            if(chatPanel.classList.contains('open')) chatInput.focus(); 
+        }
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            appendMsg(text, 'user');
+            chatInput.value = '';
+
+            const loadId = "load-" + Date.now();
+            setTimeout(() => appendMsg("...", 'bot', loadId), 300);
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: text }] }] })
+                });
+                const data = await res.json();
+                document.getElementById(loadId)?.remove();
+                if (data.error) appendMsg("Tarmoq xatosi: " + data.error.message, 'bot');
+                else appendMsg(data.candidates[0].content.parts[0].text, 'bot');
+            } catch (e) {
+                document.getElementById(loadId)?.remove();
+                appendMsg("Ulanishda xatolik yuz berdi.", 'bot');
+            }
+        }
+
+        function appendMsg(txt, sender, id = null) {
+            const div = document.createElement('div');
+            div.className = `msg ${sender}`;
+            if (id) div.id = id;
+            div.innerText = txt;
+            chatBody.appendChild(div);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const container = document.getElementById('three-canvas');
+        const scene = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // Zarrachalar (Particles)
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 1200; // Yengil ishlashi uchun optimallashtirilgan miqdor
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 100;
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.08,
+            color: 0xcccccc, 
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particlesMesh = new THREE.Points(particlesGeometry, material);
+        scene.add(particlesMesh);
+
+        // Responsive dizayn uchun
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, {passive: true});
+
+        // Sichqoncha harakati
+        let mouseX = 0;
+        let mouseY = 0;
+        window.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+            mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
+        }, {passive: true});
+
+        let scrollY = 0;
+        window.addEventListener('scroll', () => {
+            scrollY = window.scrollY;
+        }, {passive: true});
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+
+            // Zarrachalarning sokin aylanishi
+            particlesMesh.rotation.y = elapsedTime * 0.03;
+            particlesMesh.rotation.x = elapsedTime * 0.01;
+
+            // Kamera harakati (Parallax)
+            camera.position.x += (mouseX * 3 - camera.position.x) * 0.02;
+            camera.position.y += (-mouseY * 3 - camera.position.y) * 0.02 - (scrollY * 0.001);
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
