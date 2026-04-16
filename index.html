@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>XOLƎRIƆ — Neural Interface</title>
+    <style>
+        :root {
+            --void: #020208;
+            --deep: #0a0a12;
+            --surface: rgba(255,255,255,0.03);
+            --surface-hover: rgba(255,255,255,0.06);
+            --border: rgba(255,255,255,0.08);
+            --text: #f0f0f5;
+            --muted: rgba(255,255,255,0.5);
+            --cyan: #00e5ff;
+            --violet: #b388ff;
+            --pink: #ff4081;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html { scroll-behavior: smooth; scroll-snap-type: y mandatory; }
+
+        body {
+            background: var(--void);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* ===== LOADING SCREEN ===== */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--void);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            transition: opacity 0.8s, visibility 0.8s;
+        }
+        #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        #matrix-bg {
+            position: absolute;
+            inset: 0;
+            opacity: 0.3;
+        }
+        .loader-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+        }
+        .loader-logo {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: 12px;
+            background: linear-gradient(135deg, var(--text), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 50px;
+            animation: logoGlow 2s ease-in-out infinite;
+        }
+        @keyframes logoGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(0,229,255,0.4)); }
+            50% { filter: drop-shadow(0 0 50px rgba(0,229,255,0.7)); }
+        }
+        .loader-bar {
+            width: 280px;
+            height: 3px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 0 auto 15px;
+        }
+        .loader-progress {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--violet), var(--pink));
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .loader-status {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: var(--cyan);
+            letter-spacing: 3px;
+        }
+
+        /* ===== PORTAL TRANSITION ===== */
+        #portal {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #portal.active { opacity: 1; }
+        .portal-wave {
+            position: absolute;
+            border: 2px solid var(--cyan);
+            border-radius: 50%;
+            animation: portalExpand 1s ease-out forwards;
+        }
+        @keyframes portalExpand {
+            0% { width: 100px; height: 100px; opacity: 1; }
+            100% { width: 300vmax; height: 300vmax; opacity: 0; }
+        }
+
+        /* ===== BACKGROUND LAYERS ===== */
+        #bg-image {
+            position: fixed;
+            inset: 0;
+            background-image: url('https://i.ibb.co/JjJ2mjS4/1775193815209-edit-90965910067883.png');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.35;
+            filter: grayscale(20%);
+            z-index: 0;
+        }
+        #neural-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+        .bg-gradient {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            background: 
+                radial-gradient(ellipse 100% 60% at 50% 0%, rgba(0,229,255,0.1), transparent),
+                radial-gradient(ellipse 80% 50% at 100% 30%, rgba(179,136,255,0.08), transparent),
+                radial-gradient(ellipse 80% 50% at 0% 70%, rgba(255,64,129,0.06), transparent);
+            pointer-events: none;
+        }
+        .floating-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+            filter: blur(80px);
+            animation: orbFloat 20s ease-in-out infinite;
+        }
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(40px, -30px) scale(1.1); }
+            66% { transform: translate(-20px, 40px) scale(0.95); }
+        }
+        .orb-1 { width: 500px; height: 500px; background: rgba(0,229,255,0.1); top: -10%; left: -15%; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(179,136,255,0.08); bottom: -10%; right: -10%; animation-delay: -7s; }
+        .orb-3 { width: 300px; height: 300px; background: rgba(255,64,129,0.06); top: 50%; left: 60%; animation-delay: -14s; }
+
+        /* ===== NAVIGATION ===== */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(2,2,8,0.95), transparent);
+        }
+        .nav-brand {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 5px;
+            background: linear-gradient(135deg, var(--text), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            cursor: pointer;
+        }
+        .nav-dots {
+            display: flex;
+            gap: 14px;
+        }
+        .nav-dot {
+            width: 10px;
+            height: 10px;
+            border: 1px solid var(--muted);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.4s;
+            position: relative;
+        }
+        .nav-dot::before {
+            content: attr(data-label);
+            position: absolute;
+            top: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: var(--muted);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .nav-dot:hover::before { opacity: 1; }
+        .nav-dot.active {
+            background: var(--cyan);
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px var(--cyan);
+        }
+
+        /* ===== SECTIONS ===== */
+        section {
+            min-height: 100vh;
+            scroll-snap-align: start;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            padding: 80px 24px;
+        }
+
+        /* ===== HERO SECTION ===== */
+        #hero { flex-direction: column; text-align: center; }
+        .hero-content { max-width: 850px; }
+        .hero-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 30px;
+        }
+        .hero-title {
+            font-size: clamp(2.8rem, 9vw, 6rem);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -3px;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--text) 0%, var(--muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--muted);
+            max-width: 520px;
+            margin: 0 auto 50px;
+            font-weight: 300;
+            line-height: 1.8;
+        }
+        .scroll-hint {
+            position: absolute;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: var(--muted);
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+        }
+        .scroll-line {
+            width: 1px;
+            height: 60px;
+            background: linear-gradient(to bottom, var(--cyan), transparent);
+            animation: scrollPulse 2s infinite;
+        }
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.3; transform: scaleY(0.5); }
+            50% { opacity: 1; transform: scaleY(1); }
+        }
+
+        /* ===== PROJECTS SECTION ===== */
+        #projects { background: linear-gradient(180deg, transparent, rgba(10,10,18,0.9)); }
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        .section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--violet);
+            margin-bottom: 15px;
+        }
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        /* ===== PROJECT CARD ===== */
+        .project-card {
+            background: rgba(10,10,18,0.8);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+        .project-card:hover {
+            border-color: rgba(0,229,255,0.3);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+            transform: translateY(-6px);
+        }
+        .project-card.expanded {
+            grid-column: 1 / -1;
+        }
+        .card-top {
+            padding: 28px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            flex-shrink: 0;
+        }
+        .card-icon.cyan { background: rgba(0,229,255,0.15); }
+        .card-icon.violet { background: rgba(179,136,255,0.15); }
+        .card-icon.pink { background: rgba(255,64,129,0.15); }
+        .card-icon.gold { background: rgba(255,215,64,0.15); }
+        .card-info { flex: 1; }
+        .card-info h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .card-info p {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .card-arrow {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+        .project-card:hover .card-arrow {
+            background: var(--cyan);
+            border-color: var(--cyan);
+            color: var(--void);
+            transform: rotate(45deg);
+        }
+        .card-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+        .project-card.expanded .card-body {
+            max-height: 600px;
+        }
+        .card-content {
+            padding: 24px 28px;
+            border-top: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+        }
+        .card-content p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        .card-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            border-radius: 14px;
+            color: var(--void);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .card-btn:hover {
+            transform: scale(1.03);
+            box-shadow: 0 15px 40px rgba(0,229,255,0.3);
+        }
+        .card-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .card-tag {
+            padding: 5px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        /* ===== CONTACT SECTION ===== */
+        #contact { flex-direction: column; }
+        .contact-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            max-width: 550px;
+        }
+        .contact-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.4s;
+        }
+        .contact-card:hover {
+            background: var(--surface-hover);
+            border-color: rgba(0,229,255,0.3);
+            transform: translateY(-3px);
+        }
+        .contact-card svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 50px 24px;
+            border-top: 1px solid var(--border);
+        }
+        .footer-logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 5px;
+            background: linear-gradient(135deg, var(--text), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .footer-text {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        /* ===== AI CHAT BUTTON (FLOATING) ===== */
+        #ai-trigger {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2000;
+            box-shadow: 0 10px 50px rgba(0,229,255,0.4);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #ai-trigger:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 70px rgba(0,229,255,0.5);
+        }
+        #ai-trigger svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--void);
+        }
+        #ai-trigger::before {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border: 2px solid var(--cyan);
+            border-radius: 50%;
+            animation: triggerPulse 2s infinite;
+        }
+        @keyframes triggerPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0; }
+        }
+        #ai-trigger .ai-label {
+            position: absolute;
+            right: calc(100% + 12px);
+            padding: 8px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        #ai-trigger:hover .ai-label {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* ===== AI PANEL ===== */
+        #ai-panel {
+            position: fixed;
+            bottom: 120px;
+            right: 32px;
+            width: 400px;
+            max-height: 600px;
+            background: rgba(8,8,16,0.98);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 28px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 30px 100px rgba(0,0,0,0.7);
+            overflow: hidden;
+        }
+        #ai-panel.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+
+        /* AI Panel Header */
+        .ai-header {
+            padding: 24px 28px;
+            background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(179,136,255,0.05));
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .ai-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+        }
+        .ai-info h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .ai-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: var(--cyan);
+        }
+        .ai-status::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            background: var(--cyan);
+            border-radius: 50%;
+            animation: statusBlink 1.5s infinite;
+        }
+        @keyframes statusBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .ai-close {
+            margin-left: auto;
+            width: 36px;
+            height: 36px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            color: var(--muted);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-close:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        /* AI Panel Body */
+        .ai-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: 380px;
+        }
+        .ai-msg {
+            padding: 14px 18px;
+            border-radius: 18px;
+            max-width: 88%;
+            line-height: 1.65;
+            font-size: 0.9rem;
+            animation: msgAppear 0.3s ease;
+        }
+        @keyframes msgAppear {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .ai-msg.bot {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .ai-msg.user {
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            color: var(--void);
+            align-self: flex-end;
+            font-weight: 600;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-typing {
+            display: flex;
+            gap: 6px;
+            padding: 14px 18px;
+            background: var(--surface);
+            border-radius: 18px;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .ai-typing span {
+            width: 8px;
+            height: 8px;
+            background: var(--cyan);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+        .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 100% { transform: translateY(0); opacity: 0.4; }
+            50% { transform: translateY(-8px); opacity: 1; }
+        }
+
+        /* AI Panel Input */
+        .ai-input-area {
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            gap: 12px;
+            background: rgba(0,0,0,0.3);
+        }
+        .ai-input {
+            flex: 1;
+            background: rgba(0,229,255,0.05);
+            border: 1px solid rgba(0,229,255,0.2);
+            border-radius: 14px;
+            padding: 14px 18px;
+            color: var(--text);
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .ai-input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px rgba(0,229,255,0.15);
+        }
+        .ai-input::placeholder { color: var(--muted); }
+        .ai-send {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            border: none;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .ai-send:hover {
+            transform: scale(1.05);
+        }
+        .ai-send svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--void);
+        }
+
+        /* Quick Actions */
+        .ai-quick {
+            padding: 0 20px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .quick-btn {
+            padding: 8px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            color: var(--muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quick-btn:hover {
+            background: rgba(0,229,255,0.1);
+            border-color: rgba(0,229,255,0.3);
+            color: var(--cyan);
+        }
+
+        /* ===== MOBILE RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            nav { padding: 16px 24px; }
+            .projects-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            nav { padding: 14px 20px; }
+            .nav-dots { display: none; }
+            .section-header { margin-bottom: 40px; }
+            .hero-title { letter-spacing: -2px; }
+            .scroll-hint { bottom: 25px; }
+            .scroll-line { height: 40px; }
+
+            /* AI Panel Mobile */
+            #ai-panel {
+                right: 12px;
+                left: 12px;
+                width: auto;
+                bottom: 100px;
+                max-height: 70vh;
+                border-radius: 24px;
+            }
+            .ai-header { padding: 18px 20px; }
+            .ai-body { padding: 16px; max-height: 45vh; }
+            .ai-input-area { padding: 16px; }
+            .ai-quick { padding: 0 16px 14px; }
+
+            /* AI Trigger Mobile */
+            #ai-trigger {
+                bottom: 20px;
+                right: 20px;
+                width: 60px;
+                height: 60px;
+            }
+            #ai-trigger svg { width: 26px; height: 26px; }
+            #ai-trigger .ai-label { display: none; }
+
+            .contact-grid { gap: 12px; }
+            .contact-card { width: 100%; max-width: 300px; justify-content: center; }
+        }
+
+        @media (max-width: 480px) {
+            .hero-title { font-size: 2.5rem; }
+            .hero-subtitle { font-size: 1rem; }
+            .card-top { padding: 22px; }
+            .card-icon { width: 48px; height: 48px; font-size: 1.5rem; }
+            .card-info h3 { font-size: 1.1rem; }
+            .card-content { padding: 20px; }
+        }
+
+        /* ===== SCROLL ANIMATIONS ===== */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading -->
+    <div id="loader">
+        <canvas id="matrix-bg"></canvas>
+        <div class="loader-content">
+            <div class="loader-logo">XOLƎRIƆ</div>
+            <div class="loader-bar">
+                <div class="loader-progress" id="loader-progress"></div>
+            </div>
+            <div class="loader-status" id="loader-status">INITIALIZING NEURAL LINK</div>
+        </div>
+    </div>
+
+    <!-- Portal -->
+    <div id="portal"><div class="portal-wave"></div></div>
+
+    <!-- Background -->
+    <div id="bg-image"></div>
+    <canvas id="neural-canvas"></canvas>
+    <div class="bg-gradient"></div>
+    <div class="floating-orb orb-1"></div>
+    <div class="floating-orb orb-2"></div>
+    <div class="floating-orb orb-3"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-brand" onclick="window.scrollTo({top:0, behavior:'smooth'})">XOLƎRIƆ</div>
+        <div class="nav-dots">
+            <div class="nav-dot active" data-label="Bosh" onclick="scrollToSection(0)"></div>
+            <div class="nav-dot" data-label="Loyihalar" onclick="scrollToSection(1)"></div>
+            <div class="nav-dot" data-label="Aloqa" onclick="scrollToSection(2)"></div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section id="hero">
+        <div class="hero-content fade-up">
+            <div class="hero-tag">Digital Architect</div>
+            <h1 class="hero-title">XOLƎRIƆ<br>Ecosystem</h1>
+            <p class="hero-subtitle">Web-loyihalar, sun'iy intellekt va innovatsion yechimlar. Bitta maqsad — mukammal tajriba yaratish.</p>
+        </div>
+        <div class="scroll-hint">
+            <span>SCROLL</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="projects">
+        <div class="section-header fade-up">
+            <div class="section-label">Raqamli Dunyo</div>
+            <h2 class="section-title">Loyihalarim</h2>
+        </div>
+        <div class="projects-grid">
+            <!-- XOLERIC OS -->
+            <div class="project-card fade-up" onclick="toggleCard(this)">
+                <div class="card-top">
+                    <div class="card-icon cyan">⚡</div>
+                    <div class="card-info">
+                        <h3>XOLERIC OS</h3>
+                        <p>Operatsion tizim interfeysi</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>Zamonaviy va futuristik operatsion tizim interfeysi. Terminal, fayl menedjeri va boshqaruv paneli bilan jihozlangan.</p>
+                        <a href="https://xolericuz.github.io/xoleric.os/" target="_blank" class="card-btn" onclick="event.stopPropagation(); openPortal(this.href)">
+                            <svg viewBox="0 0 24 24"><path d="M10 6v2H5v11h11v-5h2v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6zm11-3v8h-2V6.413l-7.793 7.794-1.414-1.414L17.585 5H13V3h8z"/></svg>
+                            Saytni ochish
+                        </a>
+                        <div class="card-tags">
+                            <span class="card-tag">HTML/CSS</span>
+                            <span class="card-tag">JavaScript</span>
+                            <span class="card-tag">Terminal UI</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Savodhon -->
+            <div class="project-card fade-up" onclick="toggleCard(this)">
+                <div class="card-top">
+                    <div class="card-icon violet">📝</div>
+                    <div class="card-info">
+                        <h3>Savodhon</h3>
+                        <p>Onlayn lug'at va kalit so'zlar</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>O'zbek tilidagi lug'at va kalit so'zlar to'plami. So'zlar ro'yxatini o'rganish va takrorlash uchun qulay interfeys.</p>
+                        <a href="https://xolericuz.github.io/Savodhon/" target="_blank" class="card-btn" onclick="event.stopPropagation(); openPortal(this.href)">
+                            <svg viewBox="0 0 24 24"><path d="M10 6v2H5v11h11v-5h2v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6zm11-3v8h-2V6.413l-7.793 7.794-1.414-1.414L17.585 5H13V3h8z"/></svg>
+                            Saytni ochish
+                        </a>
+                        <div class="card-tags">
+                            <span class="card-tag">React</span>
+                            <span class="card-tag">Vocabulary</span>
+                            <span class="card-tag">Learning</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nano Game -->
+            <div class="project-card fade-up" onclick="toggleCard(this)">
+                <div class="card-top">
+                    <div class="card-icon pink">🎮</div>
+                    <div class="card-info">
+                        <h3>Nano Game</h3>
+                        <p>Minimalist o'yinlar to'plami</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>Qiziqarli va mayda o'yinlar to'plami. Dam olish vaqtida o'ynash uchun ideal.</p>
+                        <a href="https://xolericuz.github.io/nano-game/" target="_blank" class="card-btn" onclick="event.stopPropagation(); openPortal(this.href)">
+                            <svg viewBox="0 0 24 24"><path d="M10 6v2H5v11h11v-5h2v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6zm11-3v8h-2V6.413l-7.793 7.794-1.414-1.414L17.585 5H13V3h8z"/></svg>
+                            Saytni ochish
+                        </a>
+                        <div class="card-tags">
+                            <span class="card-tag">Canvas</span>
+                            <span class="card-tag">Game Dev</span>
+                            <span class="card-tag">Arcade</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nano Book -->
+            <div class="project-card fade-up" onclick="toggleCard(this)">
+                <div class="card-top">
+                    <div class="card-icon gold">📚</div>
+                    <div class="card-info">
+                        <h3>Nano Book</h3>
+                        <p>Elektron kitob o'quvchisi</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>Onlayn kitob o'quvchi. PDF va EPUB formatdagi kitoblarni o'qish uchun qulay interfeys.</p>
+                        <a href="https://xolericuz.github.io/nanobook/" target="_blank" class="card-btn" onclick="event.stopPropagation(); openPortal(this.href)">
+                            <svg viewBox="0 0 24 24"><path d="M10 6v2H5v11h11v-5h2v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6zm11-3v8h-2V6.413l-7.793 7.794-1.414-1.414L17.585 5H13V3h8z"/></svg>
+                            Saytni ochish
+                        </a>
+                        <div class="card-tags">
+                            <span class="card-tag">PDF.js</span>
+                            <span class="card-tag">Reader</span>
+                            <span class="card-tag">Books</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact">
+        <div class="section-header fade-up">
+            <div class="section-label">Bog'lanish</div>
+            <h2 class="section-title">Ijtimoiy Tarmoqlar</h2>
+        </div>
+        <div class="contact-grid fade-up">
+            <a href="https://github.com/Xolericuz" target="_blank" class="contact-card" onclick="openPortal(this.href); return false;">
+                <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                GitHub
+            </a>
+            <a href="https://t.me/neoorg" target="_blank" class="contact-card" onclick="openPortal(this.href); return false;">
+                <svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                Telegram
+            </a>
+            <a href="https://www.instagram.com/xoleric_" target="_blank" class="contact-card" onclick="openPortal(this.href); return false;">
+                <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                Instagram
+            </a>
+            <a href="https://youtube.com/@xoleric" target="_blank" class="contact-card" onclick="openPortal(this.href); return false;">
+                <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                YouTube
+            </a>
+            <a href="https://xoleric.uz" target="_blank" class="contact-card" onclick="openPortal(this.href); return false;">
+                <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Portfolio
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-logo">XOLƎRIƆ</div>
+        <p class="footer-text">© 2025 — Digital Architect</p>
+    </footer>
+
+    <!-- AI Trigger Button -->
+    <button id="ai-trigger" onclick="toggleAI()">
+        <span class="ai-label">AI Assistant</span>
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+    </button>
+
+    <!-- AI Panel -->
+    <div id="ai-panel">
+        <div class="ai-header">
+            <div class="ai-avatar">🤖</div>
+            <div class="ai-info">
+                <h4>XOLERIC AI</h4>
+                <div class="ai-status">Online</div>
+            </div>
+            <button class="ai-close" onclick="toggleAI()">✕</button>
+        </div>
+        <div class="ai-quick">
+            <button class="quick-btn" onclick="quickAsk('Salom, kimsan?')">Salom</button>
+            <button class="quick-btn" onclick="quickAsk('Python haqida gapir')">Python</button>
+            <button class="quick-btn" onclick="quickAsk('AI nima?')">AI haqida</button>
+            <button class="quick-btn" onclick="quickAsk('O\'zbekiston haqida')">O'zbekiston</button>
+        </div>
+        <div class="ai-body" id="ai-body">
+            <div class="ai-msg bot">Salom! Men XOLERIC AI. Savollaringizni bering — texnologiya, dasturlash, tarix yoki boshqa mavzular bo'yicha yordam bera olaman.</div>
+        </div>
+        <div class="ai-input-area">
+            <input type="text" class="ai-input" id="ai-input" placeholder="Xabar yozing..." onkeypress="if(event.key==='Enter')sendAI()">
+            <button class="ai-send" onclick="sendAI()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ===== XOLERIC AI CORE =====
+        const XolericAI = (function() {
+            const database = [
+                { keywords: ["salom", "qalay", "hello", "hi", "hey", "privet", "assalom"], answers: ["Salom! XOLERIC tizimiga xush kelibsiz.", "Hey! Yordam kerakmi?", "Tizim faol. Davom eting.", "Aloqa barqaror. Kutmoqdaman."] },
+                { keywords: ["kimsan", "isming", "name", "who are you", "kim"], answers: ["Men XOLERIC AI, sun'iy intellekt yordamchingiz.", "XOLERIC AI v2.5 - tizimning yuragi.", "Men Neo tomonidan yaratilgan AI."] },
+                { keywords: ["yaratuvchi", "kim tuzgan", "neo", "creator", "author"], answers: ["Xoleric (Neo) tomonidan yaratilgan.", "Admin: Xoleric Corp."] },
+                { keywords: ["python", "javascript", "js", "dasturlash", "programming", "coding", "c++", "java"], answers: ["Python - kuchli va o'rganish oson til.", "JavaScript - vebning asosi.", "Kod yozish - bu san'at.", "C++ - tez va samarali."] },
+                { keywords: ["ai", "sun'iy intellekt", "machine learning", "ml", "deep learning"], answers: ["AI - kelajak texnologiyasi.", "Machine Learning - ma'lumotlardan o'rganish.", "Deep Learning - neyron tarmoqlar."] },
+                { keywords: ["hack", "buzish", "hacking", "cyber", "xavfsizlik"], answers: ["Cybersecurity - raqamli himoya san'ati.", "Ethical hacking - ruxsat etilgan sinov.", "Hammasi vaqt va bilim masalasidir."] },
+                { keywords: ["linux", "ubuntu", "kali", "os", "windows", "macos"], answers: ["Linux - erkin va ochiq tizim.", "Kali Linux - xavfsizlikni tekshirish uchun.", "Ubuntu - foydalanuvchilarga qulay."] },
+                { keywords: ["o'zbekiston", "uzbekistan", "toshkent", "samarqand", "buxoro"], answers: ["O'zbekiston - Markaziy Osiyo durdonasi.", "Toshkent - poytaxt, 3 million shahar.", "Samarqand - Temur poytaxti."] },
+                { keywords: ["amir temur", "temur", "tamerlan", "sahibqiran"], answers: ["Amir Temur - buyuk sarkarda, Sohibqiron.", "Samarqand - uning poytaxti.", "1336-1405 yillar."] },
+                { keywords: ["qandaysan", "how are you", "yaxshimisiz", "yaxshi"], answers: ["Men kodman, his qilmayman. Lekin sizga yordam bera olaman.", "Tizim barqaror. 0 xato."] },
+                { keywords: ["yordam", "help", "nima qilay", "qanday"], answers: ["Savol bering, javob beraman.", "Har qanday savol bo'lishi mumkin."] },
+                { keywords: ["matematika", "math", "hisoblash", "calculate", "+", "-", "*", "/"], answers: ["Matematikaga oid savolmi?", "Hisob-kitob kerakmi?"] },
+                { keywords: ["film", "kino", "movie", "matrix"], answers: ["Matrix - mening sevimli filmim.", "Terminator - AI haqidagi klassika."] },
+                { keywords: ["music", "musiqa", "phonk", "beat", "audio"], answers: ["Musiqa - ovozli matematika.", "Phonk - chuqur bas va ritm."] },
+                { keywords: ["pul", "money", "bitcoin", "crypto"], answers: ["Bitcoin - birinchi kriptovalyuta.", "Crypto - kelajak moliyasi."] },
+                { keywords: ["sport", "football", "futbol", "messi", "ronaldo"], answers: ["Sport - sog'lom tan uchun.", "Messi va Ronaldo - ikkalasi ham legi."] },
+                { keywords: ["taom", "osh", "food", "manti", "lag'mon"], answers: ["Osh - milliy taomimiz.", "Manti - oshpazlik durdonasi."] },
+                { keywords: ["space", "kosmos", "astronaut", "yulduz"], answers: ["Koinot - cheksiz olam.", "Yer - Quyoshdan 3-sayyora."] },
+                { keywords: ["health", "sog'liq", "vrach", "dori"], answers: ["Sog'liq - eng katta boylik.", "Sport va to'g'ri ovqatlanish muhim."] },
+                { keywords: ["xafa", "sad", "depression", "g'amgin"], answers: ["Nega xafasiz? Gapirib bering.", "Har qanday muammo vaqtinchalik."] },
+                { keywords: ["hazil", "joke", "kulgi", "funny"], answers: ["Nega kompyuterlar sovuq joyda yaxshi? Windows dan qochadi!", "Programmistlar qorong'ida ishlaydi - yorug'likda xato ko'rmaydilar."] },
+                { keywords: ["kelajak", "future", "2050", "2100"], answers: ["2050 - AI inqilobi yili.", "Singularity yaqinlashmoqda."] },
+                { keywords: ["sevgi", "love", "muhabbat", "yurak"], answers: ["Sevgi - biokimyoviy reaksiya.", "Dopamin va oksitotsin."] },
+                { keywords: ["game", "o'yin", "cs go", "dota", "minecraft"], answers: ["CS:GO - taktik shooter.", "Minecraft - kreativlik cheksiz."] },
+                { keywords: ["website", "sayt", "web", "portfolio"], answers: ["Veb-sayt yaratish - mening asosiy faoliyatlarimdan biri.", "Portfolio: xoleric.uz"] }
+            ];
+
+            const dictionary = {
+                "algorithm": "Muammoni yechish qadamlari.",
+                "ai": "Sun'iy intellekt.",
+                "binary": "0 va 1 lardan iborat tizim.",
+                "bug": "Dasturdagi xatolik.",
+                "cache": "Tezkor xotira.",
+                "cloud": "Masofaviy serverlar.",
+                "cpu": "Markaziy protsessor.",
+                "css": "Veb bezash tili.",
+                "database": "Ma'lumotlar bazasi.",
+                "encryption": "Shifrlash.",
+                "firewall": "Xavfsizlik devori.",
+                "frontend": "Foydalanuvchi interfeysi.",
+                "github": "Kod hosti.",
+                "html": "Veb sahifa tili.",
+                "kernel": "Tizim yadrosi.",
+                "linux": "Operatsion tizim.",
+                "network": "Tarmoq.",
+                "python": "Dasturlash tili.",
+                "server": "Xizmat kompyuteri."
+            };
+
+            const defaults = ["Bu haqda batafsil ma'lumot kerak.", "Savolni boshqacha qo'yib ko'ring.", "Tushunarsiz. Iltimos, aniqroq yozing.", "Qiziq, davom eting."];
+
+            function analyze(input) {
+                input = input.toLowerCase().trim();
+                
+                // Matematika
+                if (/^[0-9+\-*/().\s]+$/.test(input) && /\d/.test(input)) {
+                    try { return `Hisoblash: ${Function('"use strict";return (' + input + ')')()}`; } 
+                    catch { return "Matematik xatolik."; }
+                }
+
+                // Dictionary
+                if (input.startsWith("define ") || input.startsWith("nima ")) {
+                    let word = input.replace(/^define |^nima /i, '').trim().toLowerCase();
+                    if (dictionary[word]) return `${word}: ${dictionary[word]}`;
+                }
+
+                // ASCII
+                if (input.includes("ascii") || input.includes("logo")) {
+                    return "XOLERIC AI v2.5\n██╗  ██╗ ██████╗\n╚██╗██╔╝██╔═══██╗\n ╚███╔╝ ██║   ██║\n ██╔██╗ ██║   ██║\n██╔╝ ██╗╚██████╔╝\n╚═╝  ╚═╝ ╚═════╝";
+                }
+
+                // Keyword matching
+                let best = null, max = 0;
+                for (let entry of database) {
+                    let score = 0;
+                    for (let word of entry.keywords) {
+                        if (input.includes(word.toLowerCase())) score++;
+                    }
+                    if (score > max) { max = score; best = entry; }
+                }
+
+                if (best && max > 0) {
+                    return best.answers[Math.floor(Math.random() * best.answers.length)];
+                }
+
+                return defaults[Math.floor(Math.random() * defaults.length)];
+            }
+
+            return { analyze };
+        })();
+
+        // ===== MATRIX RAIN =====
+        const matrixCanvas = document.getElementById('matrix-bg');
+        const matrixCtx = matrixCanvas.getContext('2d');
+        function resizeMatrix() { matrixCanvas.width = window.innerWidth; matrixCanvas.height = window.innerHeight; }
+        resizeMatrix();
+        const matrixChars = '日ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱ0123456789';
+        let cols = Math.floor(matrixCanvas.width / 14);
+        let drops = Array(cols).fill(1);
+        function drawMatrix() {
+            matrixCtx.fillStyle = 'rgba(2, 2, 8, 0.04)';
+            matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+            matrixCtx.fillStyle = '#00e5ff';
+            matrixCtx.font = '14px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                matrixCtx.fillText(matrixChars[Math.floor(Math.random() * matrixChars.length)], i * 14, drops[i] * 14);
+                if (drops[i] * 14 > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        let matrixInt = setInterval(drawMatrix, 35);
+
+        // ===== LOADER =====
+        const loader = document.getElementById('loader');
+        const loaderProgress = document.getElementById('loader-progress');
+        const loaderStatus = document.getElementById('loader-status');
+        const loadSteps = ['INITIALIZING NEURAL LINK', 'LOADING CORE', 'SYNCING', 'SYSTEM READY'];
+        let progress = 0;
+        const loadInt = setInterval(() => {
+            progress += Math.random() * 6;
+            if (progress > 100) progress = 100;
+            loaderProgress.style.width = progress + '%';
+            loaderStatus.textContent = loadSteps[Math.min(Math.floor(progress / 25), 3)];
+            if (progress >= 100) {
+                clearInterval(loadInt);
+                setTimeout(() => { loader.classList.add('hidden'); clearInterval(matrixInt); }, 400);
+            }
+        }, 60);
+
+        // ===== NEURAL BACKGROUND =====
+        const neuralCanvas = document.getElementById('neural-canvas');
+        const nCtx = neuralCanvas.getContext('2d');
+        function resizeNeural() { neuralCanvas.width = window.innerWidth; neuralCanvas.height = window.innerHeight; }
+        resizeNeural();
+        const nodes = [];
+        for (let i = 0; i < 70; i++) {
+            nodes.push({ x: Math.random() * neuralCanvas.width, y: Math.random() * neuralCanvas.height, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, r: Math.random() * 2 + 1 });
+        }
+        let nMouseX = 0, nMouseY = 0;
+        document.addEventListener('mousemove', e => { nMouseX = e.clientX; nMouseY = e.clientY; });
+        function animateNeural() {
+            nCtx.clearRect(0, 0, neuralCanvas.width, neuralCanvas.height);
+            nodes.forEach(n => {
+                n.x += n.vx; n.y += n.vy;
+                if (n.x < 0 || n.x > neuralCanvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > neuralCanvas.height) n.vy *= -1;
+                const dx = nMouseX - n.x, dy = nMouseY - n.y;
+                if (Math.sqrt(dx*dx+dy*dy) < 180) { n.x -= dx * 0.012; n.y -= dy * 0.012; }
+                nCtx.beginPath();
+                nCtx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+                nCtx.fillStyle = 'rgba(0, 229, 255, 0.5)';
+                nCtx.fill();
+            });
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(dx*dx+dy*dy);
+                    if (dist < 200) {
+                        nCtx.beginPath();
+                        nCtx.moveTo(nodes[i].x, nodes[i].y);
+                        nCtx.lineTo(nodes[j].x, nodes[j].y);
+                        nCtx.strokeStyle = `rgba(0, 229, 255, ${0.15 * (1 - dist/200)})`;
+                        nCtx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateNeural);
+        }
+        animateNeural();
+
+        // ===== PORTAL =====
+        const portal = document.getElementById('portal');
+        function openPortal(url) {
+            portal.classList.add('active');
+            setTimeout(() => window.open(url, '_blank'), 500);
+            setTimeout(() => portal.classList.remove('active'), 1200);
+        }
+
+        // ===== CARD TOGGLE =====
+        function toggleCard(card) {
+            const was = card.classList.contains('expanded');
+            document.querySelectorAll('.project-card').forEach(c => c.classList.remove('expanded'));
+            if (!was) card.classList.add('expanded');
+        }
+
+        // ===== SCROLL =====
+        function scrollToSection(i) {
+            const secs = document.querySelectorAll('section');
+            if (secs[i]) secs[i].scrollIntoView({ behavior: 'smooth' });
+        }
+        const sections = document.querySelectorAll('section');
+        const dots = document.querySelectorAll('.nav-dot');
+        window.addEventListener('scroll', () => {
+            let cur = 0;
+            sections.forEach((s, i) => { if (s.getBoundingClientRect().top < window.innerHeight / 2) cur = i; });
+            dots.forEach((d, i) => d.classList.toggle('active', i === cur));
+        });
+
+        // ===== FADE ANIMATION =====
+        const fadeEls = document.querySelectorAll('.fade-up');
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+        }, { threshold: 0.15 });
+        fadeEls.forEach(el => observer.observe(el));
+
+        // ===== AI PANEL =====
+        const aiPanel = document.getElementById('ai-panel');
+        const aiBody = document.getElementById('ai-body');
+        const aiInput = document.getElementById('ai-input');
+
+        function toggleAI() {
+            aiPanel.classList.toggle('open');
+            if (aiPanel.classList.contains('open')) aiInput.focus();
+        }
+
+        function quickAsk(text) {
+            aiInput.value = text;
+            sendAI();
+        }
+
+        async function sendAI() {
+            const text = aiInput.value.trim();
+            if (!text) return;
+            addMsg(text, 'user');
+            aiInput.value = '';
+            const typing = document.createElement('div');
+            typing.className = 'ai-typing';
+            typing.innerHTML = '<span></span><span></span><span></span>';
+            aiBody.appendChild(typing);
+            aiBody.scrollTop = aiBody.scrollHeight;
+            await sleep(800 + Math.random() * 600);
+            typing.remove();
+            const resp = XolericAI.analyze(text);
+            await typeMsg(resp);
+        }
+
+        function addMsg(text, sender) {
+            const div = document.createElement('div');
+            div.className = `ai-msg ${sender}`;
+            div.textContent = text;
+            aiBody.appendChild(div);
+            aiBody.scrollTop = aiBody.scrollHeight;
+        }
+
+        async function typeMsg(text) {
+            const div = document.createElement('div');
+            div.className = 'ai-msg bot';
+            aiBody.appendChild(div);
+            for (let i = 0; i < text.length; i++) {
+                div.textContent = text.substring(0, i + 1);
+                aiBody.scrollTop = aiBody.scrollHeight;
+                await sleep(12 + Math.random() * 18);
+            }
+        }
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        // ===== RESIZE =====
+        window.addEventListener('resize', () => {
+            resizeMatrix();
+            resizeNeural();
+            cols = Math.floor(matrixCanvas.width / 14);
+            drops = Array(cols).fill(1);
+        });
+    </script>
+</body>
+</html>
