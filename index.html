@@ -341,7 +341,7 @@
             margin-bottom: 2rem;
         }
         .title-line {
-            font-size: clamp(4rem, 12vw, 8rem);
+            font-size: clamp(3rem, 10vw, 7rem);
             font-weight: 800;
             line-height: 1;
             letter-spacing: -0.02em;
@@ -360,48 +360,7 @@
             letter-spacing: 0.4em;
             color: var(--muted);
         }
-        .hero-actions {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 3rem;
-            flex-wrap: wrap;
-        }
-        .hero-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.9rem 1.75rem;
-            border-radius: 14px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.4s var(--ease-smooth);
-            border: none;
-        }
-        .hero-btn.primary {
-            background: linear-gradient(135deg, var(--cyan), var(--violet));
-            color: var(--void);
-        }
-        .hero-btn.primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(0,229,255,0.3);
-        }
-        .hero-btn.secondary {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-        .hero-btn.secondary:hover {
-            border-color: var(--cyan);
-            background: var(--surface-hover);
-        }
-        .hero-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* ===== PROJECTS ===== */
+/* ===== PROJECTS ===== */
         #projects { 
             background: linear-gradient(180deg, transparent, rgba(10,10,18,0.85)); 
         }
@@ -969,16 +928,6 @@
                 <span class="title-line">XOLƎRIƆ</span>
                 <span class="title-sub">DIGITAL ECOSYSTEM</span>
             </h1>
-            <div class="hero-actions">
-                <button class="hero-btn primary" onclick="scrollTo(1)">
-                    <span>Loyihalarni ko'rish</span>
-                    <svg viewBox="0 0 24 24"><path d="M12 4v8m0 0l-4-4m4 4l4-4M4 12h16" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-                </button>
-                <button class="hero-btn secondary" onclick="toggleAI()">
-                    <span>AI bilan suxbat</span>
-                    <svg viewBox="0 0 24 24"><path d="M8 12h8m-4-4v8" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-                </button>
-            </div>
         </div>
         <div class="scroll-hint">
             <span>O'RGANISH</span>
@@ -1128,10 +1077,7 @@
         <p class="footer-text">© 2026 <span class="footer-sep">—</span> <a href="https://xoleric.uz" target="_blank">xoleric.uz</a> — Barcha huquqlar himoyalangan</p>
     </footer>
 
-    <button id="ai-trigger" onclick="toggleAI()">
-        <span class="ai-label">AI Assistant</span>
-        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-    </button>
+    
 
     <div id="ai-panel">
         <div class="ai-header">
